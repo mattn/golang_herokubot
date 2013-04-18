@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -33,8 +33,8 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			var status Status
-			e := json.NewDecoder(r.Body).Decode(&status)
-			if e != nil {
+			err := json.NewDecoder(r.Body).Decode(&status)
+			if err != nil {
 				http.Error(w, "bad request", http.StatusBadRequest)
 				return
 			}
@@ -43,6 +43,18 @@ func main() {
 				tokens := strings.SplitN(event.Message.Text, " ", 2)
 				if len(tokens) == 1 && tokens[0] == "!heroku" {
 					results += "へろくー"
+				} else if len(tokens) == 2 && tokens[0] == "!weather" {
+					url := fmt.Sprintf("http://openweathermap.org/data/2.1/find/name?q=%s", tokens[1])
+					if res, err := http.Get(url); err == nil {
+						defer res.Body.Close()
+						if res.StatusCode == 200 {
+							var weather map[string]interface{}
+							if json.NewDecoder(res.Body).Decode(&weather) == nil {
+								icon := weather["list"].([]interface{})[0].(map[string]interface{})["weather"].([]interface{})[0].(map[string]interface{})["icon"].(string)
+								results += fmt.Sprintf("http://openweathermap.org/img/w/%s", icon) + "\n"
+							}
+						}
+					}
 				}
 			}
 			if len(results) > 0 {
@@ -53,7 +65,7 @@ func main() {
 				fmt.Fprintln(w, results)
 			}
 		} else {
-			fmt.Fprintln(w, "こんにちわ世界 " + time.Now().String())
+			fmt.Fprintln(w, "こんにちわ世界 "+time.Now().String())
 		}
 	})
 	fmt.Println("listening...")
