@@ -51,7 +51,7 @@ func main() {
 							var weather map[string]interface{}
 							if json.NewDecoder(res.Body).Decode(&weather) == nil {
 								icon := weather["list"].([]interface{})[0].(map[string]interface{})["weather"].([]interface{})[0].(map[string]interface{})["icon"].(string)
-								results += fmt.Sprintf("http://openweathermap.org/img/w/%s", icon) + "\n"
+								results += fmt.Sprintf("http://openweathermap.org/img/w/%s.png", icon) + "\n"
 							}
 						}
 					}
