@@ -9,6 +9,14 @@ import (
 	"time"
 )
 
+type Weather struct {
+	List []struct {
+		Weather []struct {
+			Icon string `json:"icon"`
+		} `json:"weather"`
+	} `json:"list"`
+}
+
 type Status struct {
 	Events []Event `json:"events"`
 }
@@ -48,9 +56,9 @@ func main() {
 					if res, err := http.Get(url); err == nil {
 						defer res.Body.Close()
 						if res.StatusCode == 200 {
-							var weather map[string]interface{}
+							var weather Weather
 							if json.NewDecoder(res.Body).Decode(&weather) == nil {
-								icon := weather["list"].([]interface{})[0].(map[string]interface{})["weather"].([]interface{})[0].(map[string]interface{})["icon"].(string)
+								icon := weather.List[0].Weather[0].Icon
 								results += fmt.Sprintf("http://openweathermap.org/img/w/%s.png", icon) + "\n"
 							}
 						}
