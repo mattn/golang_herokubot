@@ -1,11 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -43,11 +44,7 @@ type Message struct {
 type Fortune map[string]interface{}
 
 func (f Fortune) star(key string) string {
-	value := f[key].(string)
-	n, err := strconv.Atoi(value)
-	if err != nil {
-		return ""
-	}
+	n := int(f[key].(float64)) // TODO(ymotongpoo): Add type validation.
 	star := ""
 	for i := 0; i < n; i++ {
 		star += "★"
@@ -66,9 +63,9 @@ func (f Fortune) IsSign(s string) bool {
 	return false
 }
 
-func (f Fortune) Write(w http.ResponseWriter) error {
+func (f Fortune) Write(w io.Writer) error {
 	data := struct {
-		Rank    string
+		Rank    int
 		Total   string
 		Love    string
 		Money   string
@@ -78,7 +75,7 @@ func (f Fortune) Write(w http.ResponseWriter) error {
 		Sign    string
 		Content string
 	}{
-		Rank:    f["rank"].(string),
+		Rank:    int(f["rank"].(float64)),
 		Total:   f.star("total"),
 		Love:    f.star("love"),
 		Money:   f.star("money"),
@@ -88,7 +85,7 @@ func (f Fortune) Write(w http.ResponseWriter) error {
 		Sign:    f["sign"].(string),
 		Content: f["content"].(string),
 	}
-	tmplText := `{{ .Rank }} {{ .Sign }}
+	tmplText := `{{ .Rank }}位 {{ .Sign }}
 総合: {{ .Total }}
 恋愛運： {{ .Love }}
 金運: {{ .Money }}
@@ -131,7 +128,6 @@ func main() {
 				} else if len(tokens) == 2 && tokens[0] == "!uranai" {
 					key := time.Now().Format("2006/01/02")
 					url := fmt.Sprintf("http://api.jugemkey.jp/api/horoscope/free/%s", key)
-
 					if res, err := http.Get(url); err == nil {
 						defer res.Body.Close()
 						if res.StatusCode == 200 {
@@ -139,16 +135,18 @@ func main() {
 							decoder := json.NewDecoder(res.Body)
 							err := decoder.Decode(&horoscope)
 							if err != nil {
-								fmt.Fprintln(w, "ぬっこわれたー")
+								results += "ぬっこわれたー"
 							} else {
 								data := horoscope["horoscope"].(map[string]interface{})
 								for _, d := range data[key].([]interface{}) {
 									f := Fortune(d.(map[string]interface{}))
 									if f.IsSign(tokens[1]) {
-										err = f.Write(w)
+										var text bytes.Buffer
+										err = f.Write(&text)
 										if err != nil {
-											fmt.Fprintln(w, "ぬっこわれたー")
+											results += "ぬっこわれたー"
 										}
+										results += text.String()
 										break
 									}
 								}
