@@ -73,7 +73,7 @@ func main() {
 				fmt.Fprintln(w, results)
 			}
 		} else {
-			fmt.Fprintln(w, "こんにちわ世界 "+time.Now().String())
+			fmt.Fprintln(w, "こんにちわ世界ナリー "+time.Now().String())
 		}
 	})
 	fmt.Println("listening...")
