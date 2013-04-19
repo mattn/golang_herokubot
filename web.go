@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -42,7 +43,11 @@ type Message struct {
 type Fortune map[string]interface{}
 
 func (f Fortune) star(key string) string {
-	n := f[key].(int)
+	value := f[key].(string)
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return ""
+	}
 	star := ""
 	for i := 0; i < n; i++ {
 		star += "★"
