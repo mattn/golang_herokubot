@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -37,6 +38,65 @@ type Message struct {
 	Text            string `json:"text"`
 }
 
+// TODO(ymotonpoo): Replace this by actual struct.
+type Fortune map[string]interface{}
+
+func (f Fortune) star(key string) string {
+	n := f[key].(int)
+	star := ""
+	for i := 0; i < n; i++ {
+		star += "★"
+	}
+	for i := 0; i < 5-n; i++ {
+		star += "☆"
+	}
+	return star
+}
+
+func (f Fortune) IsSign(s string) bool {
+	sign := f["sign"].(string)
+	if sign == s {
+		return true
+	}
+	return false
+}
+
+func (f Fortune) Write(w http.ResponseWriter) error {
+	data := struct {
+		Rank    string
+		Total   string
+		Love    string
+		Money   string
+		Job     string
+		Color   string
+		Item    string
+		Sign    string
+		Content string
+	}{
+		Rank:    f["rank"].(string),
+		Total:   f.star("total"),
+		Love:    f.star("love"),
+		Money:   f.star("money"),
+		Job:     f.star("job"),
+		Color:   f["color"].(string),
+		Item:    f["item"].(string),
+		Sign:    f["sign"].(string),
+		Content: f["content"].(string),
+	}
+	tmplText := `{{ .Rank }} {{ .Sign }}
+総合: {{ .Total }}
+恋愛運： {{ .Love }}
+金運: {{ .Money }}
+仕事運: {{ .Job }}
+ラッキーカラー: {{ .Color }}
+ラッキーアイテム: {{ .Item }}
+{{ .Content }}
+`
+	tmpl := template.Must(template.New("fortune").Parse(tmplText))
+	err := tmpl.Execute(w, data)
+	return err
+}
+
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
@@ -63,6 +123,34 @@ func main() {
 							}
 						}
 					}
+				} else if len(tokens) == 2 && tokens[0] == "!uranai" {
+					key := time.Now().Format("2006/01/02")
+					url := fmt.Sprintf("http://api.jugemkey.jp/api/horoscope/free/%s", key)
+
+					if res, err := http.Get(url); err == nil {
+						defer res.Body.Close()
+						if res.StatusCode == 200 {
+							horoscope := make(map[string]interface{})
+							decoder := json.NewDecoder(res.Body)
+							err := decoder.Decode(&horoscope)
+							if err != nil {
+								fmt.Fprintln(w, "ぬっこわれたー")
+							} else {
+								data := horoscope["horoscope"].(map[string]interface{})
+								for _, d := range data[key].([]interface{}) {
+									f := Fortune(d.(map[string]interface{}))
+									if f.IsSign(tokens[1]) {
+										err = f.Write(w)
+										if err != nil {
+											fmt.Fprintln(w, "ぬっこわれたー")
+										}
+										break
+									}
+								}
+							}
+						}
+					}
+
 				}
 			}
 			if len(results) > 0 {
